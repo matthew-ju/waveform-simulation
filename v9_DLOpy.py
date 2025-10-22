@@ -362,49 +362,41 @@ def fcalc1(phi, cc, lim, R1cc, R2cc):
     # Keep cc over limit
     Tphi, Tcc, ii = C1_2(phi, cc, lim)
 
-    # -------- Defaults so every return path has 8 values --------
     ci_low_pct  = np.nan
     ci_high_pct = np.nan
-    m           = np.array([])   # bootstrap samples (may be empty)
-    Tphi2       = np.array([])   # filtered angles (may be empty)
+    m           = np.array([])
+    Tphi2       = np.array([])
 
-    # Empty input after thresholding
     if len(Tphi) == 0:
         ue = np.array([0])   # no unique events
         n_used = 0
         return 0.0, 180.0, ue, n_used, ci_low_pct, ci_high_pct, m, Tphi2
 
-    # Degenerate: zero MAD (all angles effectively identical)
     if mad(Tphi) == 0:
-        m0 = mean(Tphi)      # matches your original semantics
-        ue = np.array([1])   # single "event" marker to mimic prior behavior
+        m0 = mean(Tphi)    
+        ue = np.array([1])
         n_used = len(Tphi)
-        # Use the point value as both CI bounds; keep your original 90 error
+
         ci_low_pct  = m0
         ci_high_pct = m0
-        m     = np.asarray(Tphi)     # treat the observed set as the bootstrap sample
+        m     = np.asarray(Tphi)
         Tphi2 = np.asarray(Tphi)
         err_full = 90.0
         return m0, err_full, ue, n_used, ci_low_pct, ci_high_pct, m, Tphi2
 
-    # Remove outliers using MAD
     Tphi, ii  = resort(Tphi, ii)
     Tphi2, ii2 = outlier1(Tphi, ii)
 
-    # If outlier removal zeroes out the data, return safe defaults
     if len(Tphi2) == 0:
-        # circular mean of the pre-outlier set is a reasonable center
         m0 = cmean(Tphi, high=360)
         ue = np.array([0])
         n_used = 0
         err_full = 180.0
         return m0, err_full, ue, n_used, ci_low_pct, ci_high_pct, m, Tphi2
 
-    # Bootstrap; ensure array type even if a function would return a scalar
     m = np.atleast_1d(boot1(Tphi2, 10000))
     m0 = cmean(m, high=360)
 
-    # CIs on wrapped deltas
     if m.size > 0:
         delta = ((m - m0 + 180.0) % 360.0) - 180.0
         q_lo, q_hi = np.percentile(delta, [2.5, 97.5])
@@ -414,15 +406,12 @@ def fcalc1(phi, cc, lim, R1cc, R2cc):
     else:
         err_full = 180.0
 
-    # Unique events & counts
     ue = uniqueevents(phi, cc, ii2, R1cc, R2cc)
     n_used = len(Tphi2)
 
     return m0, err_full, ue, n_used, ci_low_pct, ci_high_pct, m, Tphi2
 
 
-
-# create histogram of results
 def fhist1(phi,cc,lim):
     Tphi,Tcc,ii=C1_2(phi,cc,lim)
     Tphi,ii=resort(Tphi,ii)
@@ -433,9 +422,6 @@ def fhist1(phi,cc,lim):
     plt.ylabel('Counts')
     return 
 
-#############################
-# A few other random necessary ones
-#############################
 
 # Define rotation function
 #   -rotates horizontal components CW from N by alpha (in degrees)
@@ -453,7 +439,6 @@ def find_nearest(array,value):
     return (abs(array-value)).argmin()
 
 def checklen(st,hrs):
-    # checks to see if there is enough downloaded data to run program
     L=len(st)
     for i in arange((L)):
         if (UTCDateTime(st[i].stats.endtime)-UTCDateTime(st[i].stats.starttime))+100 < hrs:
@@ -462,7 +447,6 @@ def checklen(st,hrs):
         return True
     return False
 
-# save resutls
 def saved(R1cc,R2cc,R1phi,R2phi,loc='temp.dir'):
     if not os.path.exists(loc):
         os.mkdir(loc)
