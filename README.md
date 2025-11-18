@@ -1,4 +1,4 @@
-# DLOPy: Horizontal Sensor Orientation (BK network)
+# DLOPy: Horizontal Seismological Sensor Orientation
 
 Python script to estimate **horizontal seismometer orientation** by cross-correlating observed surface waves with theoretical predictions. Supports single-station runs or batch runs over many stations, and writes per-station figures plus a **summary CSV**. Easily configurable parameters through YAML file.
 
