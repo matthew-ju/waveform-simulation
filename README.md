@@ -80,9 +80,6 @@ The summary file contains the final results for all stations, including `Mean Az
 
 The toolkit generates high-level summaries for network-wide health assessment.
 
-### Network Performance Summary
-![Pass/Fail Summary](assets/images/pass_fail_summary.png)
-
 ### Error Distribution
 ![Error Distribution](assets/images/error_distribution.png)
 
