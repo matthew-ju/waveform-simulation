@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Data and Outputs
+# outputs/
+# data/summary.csv
+
+# Plots (we keep assets/images specifically)
+*.pdf
+*.png
+!assets/images/*.png
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,157 +1,99 @@
-# DLOPy: Horizontal Seismological Sensor Orientation
+# Waveform Simulation & Sensor Orientation
 
-Python script to estimate **horizontal seismometer orientation** by cross-correlating observed surface waves with theoretical predictions. Supports single-station runs or batch runs over many stations, and writes per-station figures plus a **summary CSV**. Easily configurable parameters through YAML file.
+A Python-based toolkit for seismometer orientation analysis using the Doran-Laske method. This repository automates the process of fetching waveform data, calculating sensor orientation from Rayleigh wave polarization, and visualizing the results.
 
----
+## Overview
+
+Accurate sensor orientation is critical for high-quality seismic analysis. This tool provides a robust pipeline to:
+1. Fetch earthquake catalogs and waveform data (via ObsPy).
+2. Compute path-averaged group velocities using dispersion tables.
+3. Perform polarization analysis across multiple frequencies (10–40 mHz).
+4. Generate statistical estimates of orientation offsets with bootstrap confidence intervals.
+
+## Project Structure
+
+```text
+waveform-simulation/
+├── src/                # Core logic and visualization scripts
+│   ├── main.py         # Primary orientation calculation engine
+│   └── visualizations.py # Summary plotting and error analysis
+├── data/               # Configuration and reference maps
+│   ├── maps/           # Global velocity maps (R.gv.*.txt)
+│   └── summary.csv     # Compiled results from network runs
+├── configs/            # Parameter and network configurations
+│   └── dlopy.yml       # Global settings (clients, stations, time ranges)
+├── outputs/            # Generated results (per-station directories)
+├── assets/             # Documentation assets
+│   └── images/         # Representative analysis plots
+└── README.md           # Documentation
+```
 
 ## Setup
 
 ```bash
-# clone
+# Clone the repository
 git clone git@github.com:matthew-ju/waveform-simulation.git
 cd waveform-simulation
 
-# conda env (Python 3.11) + deps
+# Create environment and install dependencies
 conda create -n bsl python=3.11 -y
 conda activate bsl
-conda install -c conda-forge obspy numpy scipy matplotlib pandas pyyaml tqdm -y
+conda install -c conda-forge obspy numpy scipy matplotlib pandas pyyaml geographiclib tqdm -y
 ```
-
----
 
 ## Configuration
-1. Download and run the first helper script to produce a fresh `stations.txt` (one station per line):
-```
-python parse.py
-```
-Example `stations.txt`:
-```
-ADAM
-ALVW
-YUBA
-```
-2. Download the R.gv dispersion tables:
-```
-R.gv.10.txt  R.gv.15.txt  R.gv.20.txt  R.gv.25.txt
-R.gv.30.txt  R.gv.35.txt  R.gv.40.txt
-```
 
-3. Download and configure `DLOPy.yml`
-### Key configurable parameters at a glance
+The analysis is driven by `configs/dlopy.yml`. Key parameters include:
 
-| Key | Meaning | Typical value |
-| :-- | :------ | :------------ |
-| `multiple` | Batch run over `sta_file` vs. single-station run via `sta` | `true` for batch |
-| `net`, `sta`, `sta_file` | Network and station selection | `BK`, `"YUBA"`, `"stations.txt"` |
-| `cha`, `com`, `loc` | Channel mask, component mask, location code | `BH?`, `BH?`, `00` |
-| `Rdir`, `outdir` | Where dispersion tables live and where outputs go | `./DLOPy`, `./out` |
-| `cat_client`, `wf_client` | Catalog and waveform data sources | `IRIS` / `NCEDC` |
-| `time1`, `time2` | Analysis time window | `"YYYY-MM-DD HH:MM:SS"` |
-| `minmag`, `mindeg_sw`, `maxdeg_sw`, `maxdep_sw` | Event QC | `6.5`, `5.0`, `175.0`, `150` |
-| `constsave`, `finplot`, `savecat` | Save behavior and figures | `true` |
-   
-
----
-
+| Key | Description | Typical Value |
+| :-- | :--- | :--- |
+| `multiple` | Batch run over station file vs. single station | `true` |
+| `sta_file` | Path to file containing station list | `stations.txt` |
+| `net`, `sta` | Default network and station codes | `BK`, `YUBA` |
+| `time1`, `time2` | Analysis time window | `"2025-01-01 ..."` |
+| `minmag` | Minimum earthquake magnitude for analysis | `6.5` |
+| `verb` | Verbosity level (0-2) | `2` |
 
 ## How to Run
-Run from within the window folder that contains `DLOPy.yml`, `stations.txt`, and `Rdir/`:
 
-```bash
-conda activate bsl
-python3 DLOpy.py
-```
+1. **Prepare Station List**: Ensure a `stations.txt` file exists in the root directory (one station code per line).
+2. **Execute Analysis**:
+   ```bash
+   python src/main.py -c configs/dlopy.yml
+   ```
+3. **Generate Visualizations**:
+   ```bash
+   python src/visualizations.py
+   ```
 
-Run secondary helper script `visualizations.py` utilizing the outputted `summary.csv`.
-```bash
-python3 visualizations.py
-```
+## Interpreting Results
 
----
-## Interpreting results
-### 3 plots are generated for each station:
-1. Orientation-Correlation (Scatter Plot)
-   `[station_ID]_v2_cluster.pdf`
-  * Raw DLOPy result, correlating its horizontal orientation in degrees (azimuth) with the cross-correlation value
-  * Solid red line shows its mean azimuth from true north, with `0ª` being most optimal
-  * Dotted red lines show the bootstrap confidence interval (CI) from the mean
-2. Spread of Azimuth (Histogram)
-    `[station_ID]_boostrap_means_hist.pdf`
-  * Distribution of the initial spread of azimuth
-  * Solid red line shows the mean spread of azimuth from true north, with `0º` being most optimal
-  * Dotted red lines show the 95% CI for this mean
-3. Bootstrapped Mean Distribution (Histogram)
-   `[station_ID]_boostrap_hist.pdf`
-  * Distribution of the mean azimuth calculated from 10,000 bootstrap resamples
-  * The distribution should be approximately bell-shaped, showing the stability and precision of the estimated mean azimuth from the bootstrap procedure
-  * Solid red line shows the mean spread of azimuth from true north, with `0º` being most optimal
-  * Dotted red lines show the 95% CI for this mean
+### Per-Station Plots (stored in `outputs/`)
+- **Orientation-Correlation**: Scatter plot showing orientation estimates vs. cross-correlation values. Solid lines indicate the mean azimuth, and dotted lines show bootstrap confidence intervals.
+- **Spread of Azimuth**: Histogram showing the distribution of initial estimates.
+- **Bootstrapped Mean Distribution**: bell-shaped distribution of 10,000 bootstrap resamples, representing the stability of the estimate.
 
-> Note: All calculations are used only with data points above the 95% confidence interval
+### Dataset Summary (`data/summary.csv`)
+The summary file contains the final results for all stations, including `Mean Azimuth`, `95% CI bounds`, and an `AbsOffset` (Absolute Offset) value.
 
-### Dataset summarizing results `summary.csv` with typical columns:
-| Field | Description| Example |
-| :-- | :------ | :------------ |
-| Network | Seismic network code | BK |
-| Station | Station ID | ADAM |
-| Location | Location code | 00 |
-| Mean Azimuth | Mean orientation estimate in degrees relative to true north | 358.3 |
-| CI95 Low Interval | Lower bound of 95% CI for azimuth | 355.7 |
-| CI95 High Interval | Upper bound of 95% CI for azimuth | 0.9 |
-| Data Points Used | Number of measurements/boostraps used in estimate | 256 |
-| Within5? | Flag whether the mean azimuth is within 5º of the target/reference | Yes/No |
-| AbsOffset | Absolute difference (in degrees) between mean azimuth and true north | 1.7 |
+## Visual Examples
 
-* Small `AbsOffset` within 5º in confidence interval -> likely aligned closer to 
-* Large `AbsOffset` not within 5º not in confidence interval -> likely needs rotation ~`Mean Azimuth`
+The toolkit generates high-level summaries for network-wide health assessment.
 
-### 3 additional summarizing plots are generated for each overall run
-1. Station Pass/Fail (Bar Chart)
-   * High-level overview of the overall success rate of the stations in a network
-   * Compares the number of stations for which the mean azimuth was within 5º of true north (pass) and those for the mean azimuth exceeded 5º (fail)
-   * Grouped bar chart, where each bar shows the total number AND proportion of stations that "passed" and "failed"
-2. Distribution of Errors in Degrees (Histogram & Box Plot)
-  * Statistical distribution of absolute offset in degrees
-  * All stations are binned to visualize distribution and key statistics like median, quartiles, and outliers
-3. Failed Stations Details (Bar Chart)
-   * Detailed analysis of the "failing" stations (only stations with mean azimuths exceeding 5º were considered)
-   * Ranks the stations in order of deferring from true north, in degrees
+### Network Performance Summary
+![Pass/Fail Summary](assets/images/pass_fail_summary.png)
 
----
-## Re-running for a new time window
-Create a new window subfolder, copy configurations and tables, adjust YAML file, and re-run:
-```bash
-# example: new window for 2024-01 to 2026-01
-mkdir -p trial11/2024-01_to_2026_01
-cp DLOPy.yml trial11/2024-01_to_2026_01/
-cp -r DLOPy trial11/2024-01_to_2026_01/    # contains R.gv.*.txt
-cp stations.txt trial11/2024-01_to_2026_01/
+### Error Distribution
+![Error Distribution](assets/images/error_distribution.png)
 
-# edit trial11/2024-01_to_2026_01/DLOPy.yml:
-#   - time1, time2
-#   - outdir (point it to this window’s output folder)
-cd trial11/2024-01_to_2026_01
-python3 parse.py      # optional: refresh stations.txt
-python3 DLOpy.py
-```
+### Failing Stations Detail
+![Failing Stations Detail](assets/images/failing_stations_detail.png)
 
----
 ## Troubleshooting
-* `stations.txt` not found
-  * Ensure `sta_file: stations.txt` exsists in the current working directory; re-generate with `python parse.py`
-* `R.gv.<xx>.txt` not found
-  * Confirm all `R.gv.10 … R.gv.40` files are present and `Rdir` points to that folder.
-* Imports flagged yellow/`ModuleNotFoundError`
-  * Use the Conda Python and select it in your editor:
-  ```bash
-  conda activate bsl
-  which python
-  python3 -c "import obspy, numpy, scipy, matplotlib, pandas, yaml"
-  ```
-* Service/network issues (script is unable to pull from IRIS online server)
-  * Retry later.
+- **Missing Maps**: Ensure `data/maps/` contains all `R.gv.*.txt` files required.
+- **Data Access**: If the script fails to download waveforms, check the `wf_client` setting and your internet connection.
+- **Path Errors**: The script uses relative paths from the project root. Ensure you run it from the root of the repository.
 
----
 ## Citation & License
-This workflow adapts ideas and supporting files from [BSL TOOLKIT (DLOPy)](https://github.com/sylvster/BSL_TOOLKIT) -- please credit the original project and respect its license.
-Data services used: [IRIS](https://service.iris.edu ), [NCEDC](https://ncedc.org/web-services-home.html)
+This workflow adapts ideas and supporting files from [BSL TOOLKIT (DLOPy)](https://github.com/sylvster/BSL_TOOLKIT).
+License: MIT
